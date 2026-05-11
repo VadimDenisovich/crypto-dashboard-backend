@@ -19,11 +19,22 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-user_role = sa.Enum("admin", "trader", "viewer", name="user_role")
-bot_status = sa.Enum(
-    "draft", "starting", "running", "stopping", "stopped", "error", name="bot_status"
+user_role = postgresql.ENUM(
+    "admin", "trader", "viewer", name="user_role", create_type=False
 )
-command_kind = sa.Enum("start", "stop", "update", name="command_kind")
+bot_status = postgresql.ENUM(
+    "draft",
+    "starting",
+    "running",
+    "stopping",
+    "stopped",
+    "error",
+    name="bot_status",
+    create_type=False,
+)
+command_kind = postgresql.ENUM(
+    "start", "stop", "update", name="command_kind", create_type=False
+)
 
 
 def upgrade() -> None:
