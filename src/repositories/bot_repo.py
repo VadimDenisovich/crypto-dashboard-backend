@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+import uuid
+from collections.abc import Sequence
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.bot import Bot, BotStatus
+
+
+class BotRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_for_user(self, user_id: uuid.UUID) -> Sequence[Bot]:
+        result = await self._session.execute(select(Bot).where(Bot.user_id == user_id))
+        return result.scalars().all()
+
+    async def get(self, bot_id: uuid.UUID) -> Bot | None:
+        return await self._session.get(Bot, bot_id)
+
+    async def create(
+        self,
+        *,
+        user_id: uuid.UUID,
+        credential_id: uuid.UUID,
+        strategy_class: str,
+        symbol: str,
+        timeframe: str,
+        params: dict[str, Any],
+    ) -> Bot:
+        bot = Bot(
+            user_id=user_id,
+            credential_id=credential_id,
+            strategy_class=strategy_class,
+            symbol=symbol,
+            timeframe=timeframe,
+            params=params,
+            status=BotStatus.DRAFT,
+        )
+        self._session.add(bot)
+        await self._session.flush()
+        return bot
+
+    async def update_status(self, bot: Bot, status: BotStatus) -> Bot:
+        bot.status = status
+        await self._session.flush()
+        return bot
+
+    async def update_params(self, bot: Bot, params: dict[str, Any]) -> Bot:
+        bot.params = params
+        await self._session.flush()
+        return bot
+
+    async def delete(self, bot: Bot) -> None:
+        await self._session.delete(bot)
