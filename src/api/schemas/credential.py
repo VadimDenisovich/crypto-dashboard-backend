@@ -11,6 +11,10 @@ class CredentialIn(BaseModel):
     label: str = Field(min_length=1, max_length=64)
     api_key: str = Field(min_length=1, max_length=512)
     api_secret: str = Field(min_length=1, max_length=512)
+    testnet: bool = Field(
+        default=True,
+        description="Validate credentials against exchange testnet/sandbox.",
+    )
 
 
 class CredentialOut(BaseModel):

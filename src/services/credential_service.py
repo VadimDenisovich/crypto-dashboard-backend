@@ -24,9 +24,10 @@ class CredentialService:
         label: str,
         api_key: str,
         api_secret: str,
+        testnet: bool = True,
     ) -> ExchangeCredential:
         # 1. Валидируем ключи через биржу до сохранения.
-        await validate_credentials(exchange, api_key, api_secret)
+        await validate_credentials(exchange, api_key, api_secret, testnet=testnet)
         # 2. Шифруем и сохраняем.
         return await self._repo.create(
             user_id=user_id,

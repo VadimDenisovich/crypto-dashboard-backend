@@ -32,6 +32,7 @@ async def create_credential(
             label=body.label,
             api_key=body.api_key,
             api_secret=body.api_secret,
+            testnet=body.testnet,
         )
     except CredentialValidationError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc

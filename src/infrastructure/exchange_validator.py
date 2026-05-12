@@ -10,12 +10,17 @@ class CredentialValidationError(Exception):
     pass
 
 
-def _build_client(exchange: str, api_key: str, api_secret: str) -> Any:
+def _build_client(exchange: str, api_key: str, api_secret: str, testnet: bool) -> Any:
     exchange = exchange.lower()
     if not hasattr(ccxt, exchange):
         raise CredentialValidationError(f"unknown exchange: {exchange}")
     klass = getattr(ccxt, exchange)
-    return klass({"apiKey": api_key, "secret": api_secret, "enableRateLimit": True})
+    client = klass({"apiKey": api_key, "secret": api_secret, "enableRateLimit": True})
+    if testnet:
+        set_sandbox = getattr(client, "set_sandbox_mode", None)
+        if callable(set_sandbox):
+            set_sandbox(True)
+    return client
 
 
 def _fetch_balance_sync(client: Any) -> None:
@@ -36,6 +41,8 @@ def _fetch_balance_sync(client: Any) -> None:
                 pass
 
 
-async def validate_credentials(exchange: str, api_key: str, api_secret: str) -> None:
-    client = _build_client(exchange, api_key, api_secret)
+async def validate_credentials(
+    exchange: str, api_key: str, api_secret: str, *, testnet: bool = True
+) -> None:
+    client = _build_client(exchange, api_key, api_secret, testnet=testnet)
     await asyncio.to_thread(_fetch_balance_sync, client)
