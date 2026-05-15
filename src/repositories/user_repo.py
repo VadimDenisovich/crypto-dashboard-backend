@@ -19,8 +19,20 @@ class UserRepository:
         result = await self._session.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
-    async def create(self, *, email: str, password_hash: str, role: UserRole = UserRole.TRADER) -> User:
+    async def create(
+        self,
+        *,
+        email: str,
+        password_hash: str | None = None,
+        role: UserRole = UserRole.TRADER,
+    ) -> User:
         user = User(email=email, password_hash=password_hash, role=role)
         self._session.add(user)
         await self._session.flush()
         return user
+
+    async def touch_last_login(self, user: User) -> None:
+        from src.models.base import utcnow
+
+        user.last_login_at = utcnow()
+        await self._session.flush()

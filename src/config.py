@@ -35,6 +35,40 @@ class Settings(BaseSettings):
     backend_ws_send_timeout_seconds: float = Field(default=2.0)
     backend_ws_max_queue: int = Field(default=100)
 
+    # === Phase 2: identity providers (email-code + OAuth) ===
+    # Адрес фронта — сюда бэк делает 302 после OAuth callback с JWT в query string.
+    backend_frontend_url: str = Field(default="http://localhost:5173")
+
+    # hCaptcha. В dev/CI можно отключить — поставить true.
+    backend_captcha_disabled: bool = Field(default=False)
+    hcaptcha_secret: str = Field(default="")
+
+    # Resend (отправка email с кодом).
+    resend_api_key: str = Field(default="")
+    resend_sender_email: str = Field(default="")
+    resend_sender_name: str = Field(default="Crypto Dashboard")
+    backend_email_code_ttl_sec: int = Field(default=600)
+    backend_email_code_max_attempts: int = Field(default=5)
+    backend_email_request_rate_limit_per_min: int = Field(default=3)
+
+    # OAuth: Google, Yandex, GitHub.
+    google_client_id: str = Field(default="")
+    google_client_secret: str = Field(default="")
+    google_redirect_uri: str = Field(default="")
+
+    yandex_client_id: str = Field(default="")
+    yandex_client_secret: str = Field(default="")
+    yandex_redirect_uri: str = Field(default="")
+
+    gh_client_id: str = Field(default="")
+    gh_client_secret: str = Field(default="")
+    gh_redirect_uri: str = Field(default="")
+
+    # Telegram (Login Widget).
+    telegram_bot_token: str = Field(default="")
+    telegram_bot_username: str = Field(default="")
+    backend_telegram_auth_max_age_sec: int = Field(default=86400)
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]

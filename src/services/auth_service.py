@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from src.config import Settings
 from src.infrastructure import security
-from src.models.user import User, UserRole
+from src.models.user import User
 from src.repositories.user_repo import UserRepository
 
 
@@ -20,25 +20,17 @@ class TokenPair:
 
 
 class AuthService:
+    """Phase 2: пароль-логина больше нет. Сервис отвечает за выпуск/обновление JWT.
+
+    Конкретный логин происходит в email_auth_service / oauth router / telegram_auth и т.п.,
+    которые вызывают `issue_tokens(user)` напрямую.
+    """
+
     def __init__(self, users: UserRepository, settings: Settings) -> None:
         self._users = users
         self._settings = settings
 
-    async def register(self, *, email: str, password: str) -> User:
-        if await self._users.get_by_email(email):
-            raise AuthError("email already registered")
-        return await self._users.create(
-            email=email,
-            password_hash=security.hash_password(password),
-            role=UserRole.TRADER,
-        )
-
-    async def login(self, *, email: str, password: str) -> TokenPair:
-        user = await self._users.get_by_email(email)
-        if not user or not user.is_active:
-            raise AuthError("invalid credentials")
-        if not security.verify_password(password, user.password_hash):
-            raise AuthError("invalid credentials")
+    def issue_tokens(self, user: User) -> TokenPair:
         return self._issue_tokens(user)
 
     async def refresh(self, *, refresh_token: str) -> TokenPair:

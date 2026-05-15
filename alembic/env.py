@@ -23,6 +23,7 @@ from src.models import (  # noqa: F401  imports register tables on metadata
     trade,
     balance_snapshot,
     strategy_error,
+    oauth_identity,
 )
 
 config = context.config

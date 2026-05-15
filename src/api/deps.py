@@ -43,6 +43,18 @@ def get_ws_manager(request: Request) -> ConnectionManager:
     return request.app.state.ws_manager  # type: ignore[no-any-return]
 
 
+def get_redis(request: Request):  # type: ignore[no-untyped-def]
+    return request.app.state.redis
+
+
+def get_resend(request: Request):  # type: ignore[no-untyped-def]
+    return request.app.state.resend
+
+
+def get_email_codes(request: Request):  # type: ignore[no-untyped-def]
+    return request.app.state.email_codes
+
+
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 CipherDep = Annotated[Cipher, Depends(get_cipher)]
