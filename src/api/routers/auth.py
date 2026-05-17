@@ -30,7 +30,7 @@ from src.repositories.user_repo import UserRepository
 from src.services.auth_service import AuthError, AuthService
 from src.services.email_auth_service import EmailAuthService
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 def _client_ip(request: Request) -> str | None:

@@ -43,13 +43,19 @@ class OAuthError(Exception):
     pass
 
 
+def _clean(value: str) -> str:
+    """Срезаем whitespace/newlines — частая причина 'invalid_client', когда
+    значение секрета случайно попало в env с пробелом на конце."""
+    return value.strip() if value else value
+
+
 def get_provider_config(settings: Settings, provider: str) -> ProviderConfig:
     if provider == "google":
         return ProviderConfig(
             name="google",
-            client_id=settings.google_client_id,
-            client_secret=settings.google_client_secret,
-            redirect_uri=settings.google_redirect_uri,
+            client_id=_clean(settings.google_client_id),
+            client_secret=_clean(settings.google_client_secret),
+            redirect_uri=_clean(settings.google_redirect_uri),
             authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
             token_url="https://oauth2.googleapis.com/token",
             scope="openid email profile",
@@ -57,9 +63,9 @@ def get_provider_config(settings: Settings, provider: str) -> ProviderConfig:
     if provider == "yandex":
         return ProviderConfig(
             name="yandex",
-            client_id=settings.yandex_client_id,
-            client_secret=settings.yandex_client_secret,
-            redirect_uri=settings.yandex_redirect_uri,
+            client_id=_clean(settings.yandex_client_id),
+            client_secret=_clean(settings.yandex_client_secret),
+            redirect_uri=_clean(settings.yandex_redirect_uri),
             authorize_url="https://oauth.yandex.ru/authorize",
             token_url="https://oauth.yandex.ru/token",
             scope="login:email",
@@ -67,9 +73,9 @@ def get_provider_config(settings: Settings, provider: str) -> ProviderConfig:
     if provider == "github":
         return ProviderConfig(
             name="github",
-            client_id=settings.gh_client_id,
-            client_secret=settings.gh_client_secret,
-            redirect_uri=settings.gh_redirect_uri,
+            client_id=_clean(settings.gh_client_id),
+            client_secret=_clean(settings.gh_client_secret),
+            redirect_uri=_clean(settings.gh_redirect_uri),
             authorize_url="https://github.com/login/oauth/authorize",
             token_url="https://github.com/login/oauth/access_token",
             scope="read:user user:email",

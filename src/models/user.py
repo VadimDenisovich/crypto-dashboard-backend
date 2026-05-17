@@ -27,7 +27,17 @@ class User(Base, TimestampMixin):
     # создаются без пароля. Поле сохраняется для миграции старых записей.
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(
-        SAEnum(UserRole, name="user_role"), default=UserRole.TRADER, nullable=False
+        # values_callable: SQLAlchemy будет писать в БД 'trader'/'admin'/'viewer'
+        # (значения), а не 'TRADER'/'ADMIN'/'VIEWER' (имена). PG ENUM в миграции 0001
+        # объявлен в lowercase — без values_callable INSERT валится с InvalidTextRepresentation.
+        SAEnum(
+            UserRole,
+            name="user_role",
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+            create_constraint=False,
+        ),
+        default=UserRole.TRADER,
+        nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

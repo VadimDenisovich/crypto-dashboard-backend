@@ -16,4 +16,7 @@ class TelegramLoginIn(BaseModel):
 
 
 class TelegramWidgetConfigOut(BaseModel):
+    # bot_id — numeric, нужен для programmatic Telegram.Login.auth({bot_id, ...}).
+    # bot_username — для отображения / data-telegram-login script-варианта виджета.
+    bot_id: int
     bot_username: str

@@ -118,7 +118,23 @@ async def telegram_widget_config(settings: SettingsDep) -> TelegramWidgetConfigO
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "TELEGRAM_BOT_USERNAME not configured",
         )
-    return TelegramWidgetConfigOut(bot_username=settings.telegram_bot_username)
+    if not settings.telegram_bot_token:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "TELEGRAM_BOT_TOKEN not configured",
+        )
+    # bot_id — numeric prefix перед ':' в токене (Telegram.Login.auth требует именно его)
+    try:
+        bot_id = int(settings.telegram_bot_token.strip().split(":", 1)[0])
+    except (ValueError, IndexError) as exc:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "TELEGRAM_BOT_TOKEN malformed (expected <id>:<token>)",
+        ) from exc
+    return TelegramWidgetConfigOut(
+        bot_id=bot_id,
+        bot_username=settings.telegram_bot_username,
+    )
 
 
 @router.post("/telegram/verify", response_model=TokenOut)
