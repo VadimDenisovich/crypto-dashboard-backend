@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Path, Request, status
@@ -38,7 +39,8 @@ class ExchangeMetaOut(BaseModel):
 
 @router.get("/supported", response_model=list[ExchangeMetaOut])
 async def list_supported() -> list[ExchangeMetaOut]:
-    return [ExchangeMetaOut(**m.__dict__) for m in all_metas()]
+    # asdict() работает с slots-dataclass, в отличие от .__dict__.
+    return [ExchangeMetaOut(**asdict(m)) for m in all_metas()]
 
 
 @router.get("/{name}/symbols", response_model=list[str])
