@@ -9,7 +9,7 @@ verify_code:
 from __future__ import annotations
 
 from src.config import Settings
-from src.infrastructure.captcha import verify_hcaptcha
+from src.infrastructure.captcha import verify_turnstile
 from src.infrastructure.email_codes import EmailCodeStore
 from src.infrastructure.resend_email import ResendClient, build_code_email
 from src.models.user import User, UserRole
@@ -36,8 +36,10 @@ class EmailAuthService:
     async def request_code(
         self, *, email: str, captcha_token: str, remoteip: str | None
     ) -> None:
-        await verify_hcaptcha(
-            secret=self._settings.hcaptcha_secret,
+        # Turnstile-секрет основной, hcaptcha-fallback для backwards-compat — Phase 2.
+        secret = self._settings.turnstile_secret or self._settings.hcaptcha_secret
+        await verify_turnstile(
+            secret=secret,
             token=captcha_token,
             remoteip=remoteip,
             disabled=self._settings.backend_captcha_disabled,

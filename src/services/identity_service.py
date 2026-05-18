@@ -57,10 +57,16 @@ class IdentityService:
         )
 
 
+# Домен для synthetic-email — `.invalid` зарезервирован под non-existent адреса (RFC 6761),
+# поэтому ни почтовый сервер, ни внешние сервисы не попытаются туда что-то слать.
+# Используем именно `.invalid`, чтобы исключить случайные сетевые обращения.
+_SYNTH_EMAIL_DOMAIN = "noreply.invalid"
+
+
 def _synth_email(provider: str, subject: str) -> str:
     """Для провайдеров, не возвращающих email (Telegram), генерим синтетический адрес.
 
     Это технический address (NOT NULL constraint), пользователь его не видит.
-    Вид: telegram-12345678@telegram.local — уникальность гарантирует subject.
+    Вид: telegram-12345678@noreply.invalid — уникальность гарантирует subject.
     """
-    return f"{provider}-{subject}@{provider}.local"
+    return f"{provider}-{subject}@{_SYNTH_EMAIL_DOMAIN}"

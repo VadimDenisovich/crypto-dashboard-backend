@@ -32,6 +32,7 @@ async def create_credential(
             label=body.label,
             api_key=body.api_key,
             api_secret=body.api_secret,
+            passphrase=body.passphrase,
             testnet=body.testnet,
         )
     except CredentialValidationError as exc:

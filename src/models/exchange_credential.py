@@ -20,3 +20,6 @@ class ExchangeCredential(Base, TimestampMixin):
     label: Mapped[str] = mapped_column(String(64), nullable=False)
     api_key_enc: Mapped[str] = mapped_column(String, nullable=False)
     api_secret_enc: Mapped[str] = mapped_column(String, nullable=False)
+    # OKX / Coinbase Pro требуют третий секрет — passphrase. Шифруется тем же
+    # Fernet'ом, что api_key_enc / api_secret_enc. Для прочих бирж — NULL.
+    passphrase_enc: Mapped[str | None] = mapped_column(String, nullable=True)

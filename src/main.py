@@ -7,7 +7,17 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routers import auth, balances, bots, credentials, health, oauth, trades, ws
+from src.api.routers import (
+    auth,
+    balances,
+    bots,
+    credentials,
+    exchanges,
+    health,
+    oauth,
+    trades,
+    ws,
+)
 from src.config import get_settings
 from src.infrastructure.command_publisher import CommandPublisher
 from src.infrastructure.crypto import Cipher
@@ -101,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(bots.router)
     app.include_router(trades.router)
     app.include_router(balances.router)
+    app.include_router(exchanges.router)
     app.include_router(ws.router)
     return app
 

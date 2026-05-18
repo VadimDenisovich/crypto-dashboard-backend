@@ -11,6 +11,9 @@ class CredentialIn(BaseModel):
     label: str = Field(min_length=1, max_length=64)
     api_key: str = Field(min_length=1, max_length=512)
     api_secret: str = Field(min_length=1, max_length=512)
+    # OKX (и старый Coinbase Pro) требуют третий секрет — passphrase.
+    # Для Binance/Bybit/MEXC оставляем None — биржа не использует.
+    passphrase: str | None = Field(default=None, min_length=1, max_length=256)
     testnet: bool = Field(
         default=True,
         description="Validate credentials against exchange testnet/sandbox.",

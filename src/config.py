@@ -39,8 +39,11 @@ class Settings(BaseSettings):
     # Адрес фронта — сюда бэк делает 302 после OAuth callback с JWT в query string.
     backend_frontend_url: str = Field(default="http://localhost:5173")
 
-    # hCaptcha. В dev/CI можно отключить — поставить true.
+    # Cloudflare Turnstile. В dev/CI можно отключить — поставить true.
     backend_captcha_disabled: bool = Field(default=False)
+    turnstile_secret: str = Field(default="")
+    # Алиас для обратной совместимости со старой Phase 2 переменной.
+    # Если задана hcaptcha_secret и не задана turnstile_secret — используем её.
     hcaptcha_secret: str = Field(default="")
 
     # Resend (отправка email с кодом).

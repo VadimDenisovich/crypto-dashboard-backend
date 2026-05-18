@@ -30,6 +30,7 @@ class ExchangeCredentialRepository:
         label: str,
         api_key_enc: str,
         api_secret_enc: str,
+        passphrase_enc: str | None = None,
     ) -> ExchangeCredential:
         cred = ExchangeCredential(
             user_id=user_id,
@@ -37,6 +38,7 @@ class ExchangeCredentialRepository:
             label=label,
             api_key_enc=api_key_enc,
             api_secret_enc=api_secret_enc,
+            passphrase_enc=passphrase_enc,
         )
         self._session.add(cred)
         await self._session.flush()

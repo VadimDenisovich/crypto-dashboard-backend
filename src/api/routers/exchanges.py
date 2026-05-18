@@ -1,0 +1,109 @@
+"""Публичные endpoint'ы для UI-каталога бирж и торговых пар.
+
+- GET /api/exchanges/supported — список бирж и их особенности (для формы Settings).
+- GET /api/exchanges/{name}/symbols — топ USDT-пар по объёму, кэш 1 час в Redis.
+
+Public endpoints (без авторизации) — это публичные данные биржи.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Path, Request, status
+from pydantic import BaseModel
+
+from src.api.deps import get_redis
+from src.infrastructure.exchange_meta import (
+    SUPPORTED_EXCHANGES,
+    all_metas,
+)
+
+router = APIRouter(prefix="/api/exchanges", tags=["exchanges"])
+
+_SYMBOLS_CACHE_KEY = "exchanges:symbols:{name}"
+_SYMBOLS_CACHE_TTL_SEC = 3600
+_TOP_N = 10
+_QUOTE = "USDT"
+
+
+class ExchangeMetaOut(BaseModel):
+    name: str
+    display_name: str
+    requires_passphrase: bool
+    supports_testnet: bool
+
+
+@router.get("/supported", response_model=list[ExchangeMetaOut])
+async def list_supported() -> list[ExchangeMetaOut]:
+    return [ExchangeMetaOut(**m.__dict__) for m in all_metas()]
+
+
+@router.get("/{name}/symbols", response_model=list[str])
+async def list_symbols(
+    request: Request,
+    name: str = Path(..., min_length=1, max_length=32),
+) -> list[str]:
+    name_lc = name.lower()
+    if name_lc not in SUPPORTED_EXCHANGES:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"exchange '{name}' not supported"
+        )
+
+    redis = get_redis(request)
+    key = _SYMBOLS_CACHE_KEY.format(name=name_lc)
+    cached = await redis.get(key)
+    if cached:
+        return list(json.loads(cached))
+
+    try:
+        symbols = await _fetch_top_symbols(name_lc)
+    except Exception as exc:  # noqa: BLE001 — сетевая ошибка биржи / ccxt
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"failed to load symbols: {exc}"
+        ) from exc
+
+    await redis.set(key, json.dumps(symbols), ex=_SYMBOLS_CACHE_TTL_SEC)
+    return symbols
+
+
+async def _fetch_top_symbols(exchange_name: str) -> list[str]:
+    """Грузит markets+tickers с биржи, фильтрует USDT-пары, сортирует по объёму, top N."""
+    import ccxt.async_support as ccxt_async  # импорт здесь — модуль тяжёлый
+
+    klass = getattr(ccxt_async, exchange_name, None)
+    if klass is None:
+        raise RuntimeError(f"ccxt has no async client for {exchange_name}")
+
+    client = klass({"enableRateLimit": True})
+    try:
+        # Не каждая биржа отдаёт volume в load_markets — добираем через fetch_tickers.
+        markets = await client.load_markets()
+        usdt_pairs = [
+            sym for sym, info in markets.items()
+            if info.get("quote") == _QUOTE and info.get("active", True)
+        ]
+        if not usdt_pairs:
+            return []
+
+        # Тикеры могут не поддерживаться все разом — пробуем, fallback к простому списку.
+        try:
+            tickers: dict[str, Any] = await client.fetch_tickers(usdt_pairs)
+        except Exception:
+            tickers = {}
+
+        def volume_of(sym: str) -> float:
+            t = tickers.get(sym) or {}
+            return float(t.get("quoteVolume") or t.get("baseVolume") or 0.0)
+
+        ranked = sorted(usdt_pairs, key=volume_of, reverse=True)
+        return ranked[:_TOP_N]
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            try:
+                await close()
+            except Exception:
+                pass

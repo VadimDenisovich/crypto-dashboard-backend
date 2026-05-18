@@ -24,10 +24,13 @@ class CredentialService:
         label: str,
         api_key: str,
         api_secret: str,
+        passphrase: str | None = None,
         testnet: bool = True,
     ) -> ExchangeCredential:
         # 1. Валидируем ключи через биржу до сохранения.
-        await validate_credentials(exchange, api_key, api_secret, testnet=testnet)
+        await validate_credentials(
+            exchange, api_key, api_secret, testnet=testnet, passphrase=passphrase
+        )
         # 2. Шифруем и сохраняем.
         return await self._repo.create(
             user_id=user_id,
@@ -35,6 +38,7 @@ class CredentialService:
             label=label,
             api_key_enc=self._cipher.encrypt(api_key),
             api_secret_enc=self._cipher.encrypt(api_secret),
+            passphrase_enc=self._cipher.encrypt(passphrase) if passphrase else None,
         )
 
     async def delete_for_user(
