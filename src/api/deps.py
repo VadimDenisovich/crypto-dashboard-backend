@@ -47,6 +47,10 @@ def get_redis(request: Request):  # type: ignore[no-untyped-def]
     return request.app.state.redis
 
 
+def get_backtest_queue(request: Request):  # type: ignore[no-untyped-def]
+    return request.app.state.backtest_queue
+
+
 def get_resend(request: Request):  # type: ignore[no-untyped-def]
     return request.app.state.resend
 

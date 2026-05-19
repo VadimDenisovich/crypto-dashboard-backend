@@ -26,13 +26,25 @@ async def _assert_owned(db, user_id: uuid.UUID, bot_id: uuid.UUID) -> None:
 async def list_trades(
     user: CurrentUser,
     db: DbSession,
-    bot_id: uuid.UUID = Query(...),
+    bot_id: uuid.UUID | None = Query(default=None),
     since: datetime | None = Query(default=None, alias="from"),
     until: datetime | None = Query(default=None, alias="to"),
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[TradeOut]:
-    await _assert_owned(db, user.id, bot_id)
-    items = await TradeRepository(db).list_for_bot(bot_id, since=since, until=until, limit=limit)
+    repo = TradeRepository(db)
+    if bot_id is not None:
+        await _assert_owned(db, user.id, bot_id)
+        items = await repo.list_for_bot(
+            bot_id, since=since, until=until, limit=limit
+        )
+        return [TradeOut.model_validate(t) for t in items]
+
+    # Без bot_id — отдаём агрегат по всем ботам user'а (для Dashboard / Trades).
+    bots = await BotRepository(db).list_for_user(user.id)
+    bot_ids = [b.id for b in bots]
+    items = await repo.list_for_user_bots(
+        bot_ids, since=since, until=until, limit=limit
+    )
     return [TradeOut.model_validate(t) for t in items]
 
 

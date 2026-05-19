@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routers import (
     auth,
+    backtest,
     balances,
     bots,
     credentials,
@@ -28,6 +30,7 @@ from src.infrastructure.redis_client import create_redis
 from src.infrastructure.resend_email import ResendClient
 from src.infrastructure.ws_manager import ConnectionManager
 from src.logging_setup import configure_logging, get_logger
+from src.services.backtest_worker import backtest_worker
 
 
 @asynccontextmanager
@@ -58,6 +61,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         rate_limit_per_min=settings.backend_email_request_rate_limit_per_min,
     )
 
+    backtest_queue: asyncio.Queue[Any] = asyncio.Queue()
+
     app.state.db_engine = engine
     app.state.session_factory = session_factory
     app.state.redis = redis
@@ -66,6 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.ws_manager = ws_manager
     app.state.resend = resend
     app.state.email_codes = email_codes
+    app.state.backtest_queue = backtest_queue
 
     subscriber_task = asyncio.create_task(
         run_subscriber(
@@ -76,6 +82,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ),
         name="pubsub-subscriber",
     )
+    backtest_task = asyncio.create_task(
+        backtest_worker(backtest_queue, session_factory, settings),
+        name="backtest-worker",
+    )
 
     log.info("backend.started")
 
@@ -83,7 +93,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         subscriber_task.cancel()
-        await asyncio.gather(subscriber_task, return_exceptions=True)
+        backtest_task.cancel()
+        await asyncio.gather(subscriber_task, backtest_task, return_exceptions=True)
         await ws_manager.close_all()
         await redis.aclose()
         await engine.dispose()
@@ -112,6 +123,7 @@ def create_app() -> FastAPI:
     app.include_router(trades.router)
     app.include_router(balances.router)
     app.include_router(exchanges.router)
+    app.include_router(backtest.router)
     app.include_router(ws.router)
     return app
 

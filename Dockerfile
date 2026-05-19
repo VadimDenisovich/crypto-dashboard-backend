@@ -25,6 +25,11 @@ WORKDIR /app
 COPY --from=builder /build/wheels /wheels
 RUN pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
 
+# Phase 4 (backtest): pandas/pyarrow нужны движку при запуске backtest_main
+# subprocess'а. Ставим их в backend-образ, чтобы subprocess мог импортировать.
+# Сам движок монтируется bind-mount'ом через docker-compose (PYTHONPATH=/opt/engine/src).
+RUN pip install --no-cache-dir "pandas>=2.2" "pyarrow>=15"
+
 COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app alembic ./alembic
 COPY --chown=app:app src ./src

@@ -56,3 +56,26 @@ class TradeRepository:
             stmt = stmt.where(Trade.created_at <= until)
         result = await self._session.execute(stmt)
         return result.scalars().all()
+
+    async def list_for_user_bots(
+        self,
+        bot_ids: Sequence[uuid.UUID],
+        *,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 100,
+    ) -> Sequence[Trade]:
+        if not bot_ids:
+            return []
+        stmt = (
+            select(Trade)
+            .where(Trade.bot_id.in_(list(bot_ids)))
+            .order_by(Trade.created_at.desc())
+            .limit(limit)
+        )
+        if since is not None:
+            stmt = stmt.where(Trade.created_at >= since)
+        if until is not None:
+            stmt = stmt.where(Trade.created_at <= until)
+        result = await self._session.execute(stmt)
+        return result.scalars().all()

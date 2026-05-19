@@ -72,6 +72,16 @@ class Settings(BaseSettings):
     telegram_bot_username: str = Field(default="")
     backend_telegram_auth_max_age_sec: int = Field(default=86400)
 
+    # === Phase 4: Backtest engine ===
+    # Команда запуска backtest CLI движка (subprocess из backend контейнера).
+    # На проде в backend-образе движок ставится через pip install -e /opt/engine[backtest],
+    # поэтому "python -m backtest_main" доступен из PATH.
+    backend_backtest_cmd: str = Field(default="python -m backtest_main")
+    # Папка с parquet-файлами исторических свечей.
+    backend_historical_dir: str = Field(default="/data/historical")
+    # Максимальное время одного backtest-прогона (через subprocess timeout).
+    backend_backtest_timeout_sec: int = Field(default=1800)
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
