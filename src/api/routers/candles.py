@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Path, Request, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 
 from src.api.deps import get_redis
 from src.infrastructure.exchange_meta import SUPPORTED_EXCHANGES
@@ -12,16 +13,24 @@ router = APIRouter(prefix="/api/candles", tags=["candles"])
 
 _CANDLES_CACHE_KEY = "candles:{exchange}:{symbol}:{timeframe}"
 _CANDLES_CACHE_TTL_SEC = 60
+_TIMEFRAME_RE = re.compile(r"^\d+[mhdwM]$")
 
 
-@router.get("/{exchange}/{symbol}/{timeframe}")
+@router.get("/{exchange}/{symbol:path}")
 async def get_candles(
     request: Request,
     exchange: str = Path(..., min_length=1, max_length=32),
-    symbol: str = Path(..., min_length=3, max_length=32),
-    timeframe: str = Path(..., pattern=r"^\d+[mhdwM]$"),
-    limit: int = 100,
+    symbol: str = Path(..., min_length=3, max_length=64),
+    limit: int = Query(100),
 ) -> list[dict]:
+    parts = symbol.rsplit("/", 1)
+    if len(parts) != 2 or not _TIMEFRAME_RE.match(parts[1]):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "expected /{exchange}/{base}/{quote}/{timeframe}",
+        )
+    pair, timeframe = parts
+
     exchange_lc = exchange.lower()
     if exchange_lc not in SUPPORTED_EXCHANGES:
         raise HTTPException(
@@ -29,7 +38,7 @@ async def get_candles(
         )
 
     redis = get_redis(request)
-    key = _CANDLES_CACHE_KEY.format(exchange=exchange_lc, symbol=symbol, timeframe=timeframe)
+    key = _CANDLES_CACHE_KEY.format(exchange=exchange_lc, symbol=pair, timeframe=timeframe)
     cached = await redis.get(key)
     if cached:
         return list(json.loads(cached))
@@ -44,7 +53,7 @@ async def get_candles(
 
     client = klass({"enableRateLimit": True})
     try:
-        raw = await client.fetch_ohlcv(symbol, timeframe, limit=limit)
+        raw = await client.fetch_ohlcv(pair, timeframe, limit=limit)
     except Exception as exc:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"failed to fetch candles: {exc}"
