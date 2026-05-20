@@ -4,7 +4,6 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain import events
@@ -47,17 +46,19 @@ class EventProjector:
         else:
             log.warning("event.unknown_channel", channel=channel)
 
-    async def _resolve_bot_for_strategy(self, strategy: str | None) -> Bot | None:
-        if not strategy:
+    async def _resolve_bot_by_id(self, bot_id: str | None) -> Bot | None:
+        if not bot_id:
             return None
-        result = await self._session.execute(
-            select(Bot).where(Bot.strategy_class == strategy).limit(1)
-        )
-        return result.scalar_one_or_none()
+        try:
+            bot_uuid = uuid.UUID(bot_id)
+        except ValueError:
+            log.warning("event.invalid_bot_id", bot_id=bot_id)
+            return None
+        return await self._session.get(Bot, bot_uuid)
 
     async def _handle_new_trade(self, payload: dict[str, Any]) -> None:
         strategy = payload.get("strategy")
-        bot = await self._resolve_bot_for_strategy(strategy)
+        bot = await self._resolve_bot_by_id(payload.get("bot_id"))
         bot_id = bot.id if bot else None
         await OrderRepository(self._session).upsert(
             bot_id=bot_id,
@@ -122,7 +123,7 @@ class EventProjector:
 
     async def _handle_strategy_error(self, payload: dict[str, Any]) -> None:
         strategy = payload.get("strategy")
-        bot = await self._resolve_bot_for_strategy(strategy)
+        bot = await self._resolve_bot_by_id(payload.get("bot_id"))
         await StrategyErrorRepository(self._session).insert(
             bot_id=bot.id if bot else None,
             strategy=strategy,
