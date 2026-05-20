@@ -38,14 +38,14 @@ class BotRepository:
             symbol=symbol,
             timeframe=timeframe,
             params=params,
-            status=BotStatus.DRAFT,
+            status=BotStatus.DRAFT.value,
         )
         self._session.add(bot)
         await self._session.flush()
         return bot
 
     async def update_status(self, bot: Bot, status: BotStatus) -> Bot:
-        bot.status = status
+        bot.status = status.value
         await self._session.flush()
         return bot
 

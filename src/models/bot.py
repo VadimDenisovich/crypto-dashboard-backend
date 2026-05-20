@@ -38,7 +38,13 @@ class Bot(Base, TimestampMixin):
     timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     status: Mapped[BotStatus] = mapped_column(
-        SAEnum(BotStatus, name="bot_status"), default=BotStatus.DRAFT, nullable=False
+        SAEnum(
+            BotStatus,
+            name="bot_status",
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
+        default=BotStatus.DRAFT,
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=lambda: datetime.now(timezone.utc), nullable=False

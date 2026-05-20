@@ -28,6 +28,10 @@ os.environ["BACKEND_JWT_SECRET"] = TEST_JWT_SECRET
 os.environ["BACKEND_ENCRYPTION_KEY"] = TEST_ENCRYPTION_KEY
 os.environ["BACKEND_CAPTCHA_DISABLED"] = "true"
 
+from src.logging_setup import configure_logging
+
+configure_logging()
+
 # Теперь можно импортировать src — get_settings() закэширует
 # значения из os.environ.
 from src.config import Settings, get_settings
@@ -56,7 +60,7 @@ INTEGRATION_REDIS_URL = os.environ.get(
 
 @pytest_asyncio.fixture(scope="session")
 async def engine() -> AsyncIterator[AsyncEngine]:
-    eng = create_async_engine(INTEGRATION_DB_URL, pool_pre_ping=True, future=True)
+    eng = create_async_engine(INTEGRATION_DB_URL, future=True)
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     try:
@@ -129,8 +133,11 @@ async def client(app: Any) -> AsyncIterator[AsyncClient]:
 @pytest_asyncio.fixture()
 async def test_user(session: AsyncSession) -> User:
     repo = UserRepository(session)
-    user = await repo.create(email="integration-test@example.com")
-    await session.flush()
+    user = await repo.create(
+        email=f"integration-test-{uuid.uuid4().hex[:8]}@example.com"
+    )
+    await session.commit()
+    await session.begin()
     return user
 
 
@@ -157,7 +164,8 @@ async def test_credential(session: AsyncSession, test_user: User) -> ExchangeCre
         passphrase_enc=None,
     )
     session.add(cred)
-    await session.flush()
+    await session.commit()
+    await session.begin()
     return cred
 
 
@@ -176,6 +184,7 @@ async def test_bot(
         timeframe="5m",
         params={"fast_period": 10, "slow_period": 30, "order_size": "0.001"},
     )
-    bot.status = BotStatus.RUNNING
-    await session.flush()
+    bot.status = BotStatus.RUNNING.value
+    await session.commit()
+    await session.begin()
     return bot
