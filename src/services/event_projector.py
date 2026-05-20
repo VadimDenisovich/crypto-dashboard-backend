@@ -15,6 +15,7 @@ from src.models.exchange_credential import ExchangeCredential
 from src.repositories.balance_repo import BalanceRepository
 from src.repositories.error_repo import StrategyErrorRepository
 from src.repositories.order_repo import OrderRepository
+from src.repositories.position_repo import PositionRepository
 
 log = get_logger(__name__)
 
@@ -37,6 +38,8 @@ class EventProjector:
             await self._handle_new_trade(payload)
         elif channel == events.BALANCE_UPDATE:
             await self._handle_balance_update(payload)
+        elif channel == events.POSITIONS_UPDATE:
+            await self._handle_positions_update(payload)
         elif channel == events.STRATEGY_ERROR:
             await self._handle_strategy_error(payload)
         elif channel == events.ENGINE_STATUS:
@@ -92,6 +95,29 @@ class EventProjector:
         if cred is not None:
             await self._ws.broadcast_to_user(
                 cred.user_id, {"type": "balance_update", "data": payload}
+            )
+
+    async def _handle_positions_update(self, payload: dict[str, Any]) -> None:
+        credential_id = payload.get("credential_id")
+        positions_raw = payload.get("positions", [])
+        if credential_id is None:
+            log.warning("positions_update.no_credential", payload_keys=list(payload.keys()))
+            return
+        cred_uuid = uuid.UUID(str(credential_id))
+        repo = PositionRepository(self._session)
+        for pos in positions_raw:
+            await repo.insert(
+                credential_id=cred_uuid,
+                symbol=str(pos["symbol"]),
+                side=str(pos["side"]),
+                entry_price=_to_decimal(pos["entry_price"]),
+                size=_to_decimal(pos["size"]),
+                current_pnl=_to_decimal(pos["current_pnl"]),
+            )
+        cred = await self._session.get(ExchangeCredential, cred_uuid)
+        if cred is not None:
+            await self._ws.broadcast_to_user(
+                cred.user_id, {"type": "positions_update", "data": payload}
             )
 
     async def _handle_strategy_error(self, payload: dict[str, Any]) -> None:

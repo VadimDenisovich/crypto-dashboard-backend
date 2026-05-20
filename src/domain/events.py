@@ -9,12 +9,14 @@
 # Каналы, на которые ПОДПИСАН бэкенд (издаёт движок)
 NEW_TRADE = "engine.new_trade"
 BALANCE_UPDATE = "engine.balance_update"
+POSITIONS_UPDATE = "engine.positions_update"
 ENGINE_STATUS = "engine.status"
 STRATEGY_ERROR = "engine.strategy_error"
 
 ENGINE_CHANNELS: tuple[str, ...] = (
     NEW_TRADE,
     BALANCE_UPDATE,
+    POSITIONS_UPDATE,
     ENGINE_STATUS,
     STRATEGY_ERROR,
 )

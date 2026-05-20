@@ -13,10 +13,12 @@ from src.api.routers import (
     backtest,
     balances,
     bots,
+    candles,
     credentials,
     exchanges,
     health,
     oauth,
+    positions,
     trades,
     ws,
 )
@@ -125,6 +127,8 @@ def create_app() -> FastAPI:
     app.include_router(exchanges.router)
     app.include_router(backtest.router)
     app.include_router(ws.router)
+    app.include_router(positions.router)
+    app.include_router(candles.router)
     return app
 
 

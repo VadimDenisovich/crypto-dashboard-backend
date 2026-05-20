@@ -46,3 +46,25 @@ class BalanceOut(BaseModel):
     observed_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PositionOut(BaseModel):
+    id: uuid.UUID
+    credential_id: uuid.UUID
+    symbol: str
+    side: str
+    entry_price: Decimal
+    size: Decimal
+    current_pnl: Decimal
+    observed_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BalanceSummaryOut(BaseModel):
+    total_equity: Decimal
+    free_total: Decimal
+    used_total: Decimal
+    currencies: list[BalanceOut]
+    open_pnl: Decimal = Decimal("0")
+    position_count: int = 0
