@@ -75,8 +75,10 @@ async def engine() -> AsyncIterator[AsyncEngine]:
 async def session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with factory() as sess:
-        async with sess.begin():
+        await sess.begin()
+        try:
             yield sess
+        finally:
             await sess.rollback()
 
 
@@ -112,9 +114,14 @@ async def app(engine: AsyncEngine, session: AsyncSession, redis: Redis) -> Async
     fastapi_app.state.cipher = cipher
     fastapi_app.state.ws_manager = ws_manager
     fastapi_app.state.backtest_queue = asyncio.Queue()
-    fastapi_app.state.resend = ResendClient(
-        api_key="", sender_email="", sender_name="test"
-    )
+
+    class _FakeResend:
+        configured = True
+
+        async def send(self, **kwargs: Any) -> str:  # noqa: ARG002
+            return "fake-email-id"
+
+    fastapi_app.state.resend = _FakeResend()
     fastapi_app.state.email_codes = EmailCodeStore(
         redis, ttl_sec=600, max_attempts=5, rate_limit_per_min=10
     )

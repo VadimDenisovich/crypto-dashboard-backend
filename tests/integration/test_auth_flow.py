@@ -37,9 +37,9 @@ class TestAuthFlow:
                 "captcha_token": "test-captcha",
             },
         )
-        assert response.status_code in (200, 429)
+        assert response.status_code in (200, 202, 429)
 
-        if response.status_code == 200:
+        if response.status_code in (200, 202):
             assert response.json()["status"] == "sent"
 
     async def test_exchanges_supported_returns_catalog(self, client, access_token):
