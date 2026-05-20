@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     backend_refresh_token_ttl_days: int = Field(default=7)
 
     backend_encryption_key: str = Field(
-        default="ZmRldi1mZXJuZXQta2V5LXBsZWFzZS1jaGFuZ2UtaW4tcHJvZD0="
+        default="oABjyJTzjDOLVdZfv5z8XXs5-cdCqoiiaJHZEVJAICE="
     )
 
     backend_cors_origins: str = Field(default="http://localhost:5173")

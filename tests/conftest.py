@@ -7,5 +7,5 @@ os.environ.setdefault("BACKEND_DATABASE_URL", "postgresql+asyncpg://test:test@lo
 os.environ.setdefault("BACKEND_REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("BACKEND_JWT_SECRET", "test-secret")
 os.environ.setdefault(
-    "BACKEND_ENCRYPTION_KEY", "ZmRldi1mZXJuZXQta2V5LXBsZWFzZS1jaGFuZ2UtaW4tcHJvZD0="
+    "BACKEND_ENCRYPTION_KEY", "oABjyJTzjDOLVdZfv5z8XXs5-cdCqoiiaJHZEVJAICE="
 )

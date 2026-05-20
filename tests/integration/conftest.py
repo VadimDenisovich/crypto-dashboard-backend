@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import (
 # tests/conftest.py (родительский) делает setdefault, поэтому здесь
 # прямо перезаписываем.
 TEST_JWT_SECRET = "integration-test-jwt-secret-at-least-32-chars"
-TEST_ENCRYPTION_KEY = "ZmRldi1mZXJuZXQta2V5LXBsZWFzZS1jaGFuZ2UtaW4tcHJvZD0="
+TEST_ENCRYPTION_KEY = "oABjyJTzjDOLVdZfv5z8XXs5-cdCqoiiaJHZEVJAICE="
 
 os.environ["BACKEND_JWT_SECRET"] = TEST_JWT_SECRET
 os.environ["BACKEND_ENCRYPTION_KEY"] = TEST_ENCRYPTION_KEY
