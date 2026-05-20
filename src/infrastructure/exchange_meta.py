@@ -48,6 +48,16 @@ _REGISTRY: tuple[ExchangeMeta, ...] = (
 
 SUPPORTED_EXCHANGES: frozenset[str] = frozenset(m.name for m in _REGISTRY)
 
+# Единственный разрешённый набор торговых пар — для всех бирж, как при создании
+# стратегии, так и для бэктеста. Порядок сохраняется в выдаче UI.
+ALLOWED_SYMBOLS: tuple[str, ...] = (
+    "BTC/USDT",
+    "SOL/USDT",
+    "XRP/USDT",
+    "BNB/USDT",
+    "ETH/USDT",
+)
+
 
 def all_metas() -> list[ExchangeMeta]:
     return list(_REGISTRY)

@@ -31,6 +31,9 @@ class BacktestJob(Base):
         nullable=False,
     )
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    exchange: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="binance", server_default="binance"
+    )
     strategy_class: Mapped[str] = mapped_column(String(64), nullable=False)
     symbol: Mapped[str] = mapped_column(String(32), nullable=False)
     timeframe: Mapped[str] = mapped_column(String(8), nullable=False)

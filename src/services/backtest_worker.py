@@ -38,23 +38,21 @@ def _slugify(value: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in value).lower()
 
 
-def _resolve_parquet_path(historical_dir: Path, exchange: str, symbol: str, timeframe: str) -> Path | None:
-    """Ищем parquet по имени: {exchange}_{base}_{quote}_{timeframe}*.parquet.
+def _resolve_parquet_path(historical_dir: Path, exchange: str, symbol: str, timeframe: str) -> Path:
+    """Возвращает путь к parquet-кэшу для (exchange, symbol, timeframe).
 
-    Это первый соответствующий файл; точный диапазон дат не проверяем (для MVP
-    предполагаем что admin/CI скачали единственный файл на (symbol, timeframe)).
+    Если уже есть подходящий файл `{exchange}_{slug}_{timeframe}*.parquet` — берём
+    первый. Иначе возвращаем канонический путь `{exchange}_{slug}_{timeframe}.parquet`
+    (файла может ещё не быть — движок скачает данные с биржи и запишет кэш сюда).
     """
     historical_dir = Path(historical_dir)
-    if not historical_dir.exists():
-        return None
     base = _slugify(symbol)
-    pattern = f"{exchange}_{base}_{timeframe}*.parquet"
-    matches = sorted(historical_dir.glob(pattern))
-    if matches:
-        return matches[0]
-    # Fallback: без exchange-префикса
-    matches = sorted(historical_dir.glob(f"*{base}*{timeframe}*.parquet"))
-    return matches[0] if matches else None
+    canonical = historical_dir / f"{exchange}_{base}_{timeframe}.parquet"
+    if historical_dir.exists():
+        matches = sorted(historical_dir.glob(f"{exchange}_{base}_{timeframe}*.parquet"))
+        if matches:
+            return matches[0]
+    return canonical
 
 
 async def _run_subprocess(
@@ -81,13 +79,16 @@ async def _run_subprocess(
 
 def _build_config_payload(job: BacktestJob) -> dict[str, Any]:
     return {
+        "exchange": job.exchange,
         "strategy": job.strategy_class,
         "symbol": job.symbol,
         "timeframe": job.timeframe,
         "params": dict(job.params),
         "initial_balance": dict(job.initial_balance),
-        # date_from/date_to пока не передаём в engine — он гонит весь файл целиком.
-        # В Phase 5 добавим фильтрацию диапазона на стороне CSVMarketDataProvider.
+        # Диапазон дат передаём в мс — движок фильтрует свечи и/или докачивает
+        # недостающие данные с реальной биржи (гибрид parquet + CCXT).
+        "date_from_ms": int(job.date_from.timestamp() * 1000),
+        "date_to_ms": int(job.date_to.timestamp() * 1000),
     }
 
 
@@ -105,21 +106,14 @@ async def _process_job(
         await repo.update_status(job, BacktestStatus.RUNNING)
         await session.commit()
 
-        # Найти parquet файл. exchange пока всегда binance (берём первый matching).
+        # Путь к parquet-кэшу для биржи job'а. Файла может не быть — движок сам
+        # скачает данные с реальной биржи (CCXT) и запишет кэш сюда.
         parquet = _resolve_parquet_path(
             Path(settings.backend_historical_dir),
-            exchange="binance",
+            exchange=job.exchange,
             symbol=job.symbol,
             timeframe=job.timeframe,
         )
-        if parquet is None:
-            await repo.mark_failed(
-                job,
-                f"Нет исторических данных для {job.symbol} {job.timeframe}. "
-                f"Выполните scripts/fetch_historical.py.",
-            )
-            await session.commit()
-            return
 
         config = _build_config_payload(job)
         config["parquet_path"] = str(parquet)

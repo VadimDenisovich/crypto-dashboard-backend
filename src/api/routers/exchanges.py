@@ -8,26 +8,24 @@ Public endpoints (без авторизации) — это публичные �
 
 from __future__ import annotations
 
-import asyncio
 import json
 from dataclasses import asdict
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Path, Request, status
 from pydantic import BaseModel
 
 from src.api.deps import get_redis
 from src.infrastructure.exchange_meta import (
+    ALLOWED_SYMBOLS,
     SUPPORTED_EXCHANGES,
     all_metas,
 )
 
 router = APIRouter(prefix="/api/exchanges", tags=["exchanges"])
 
-_SYMBOLS_CACHE_KEY = "exchanges:symbols:{name}"
+# Бамп версии ключа, чтобы старый кэш топ-10 пар не подмешивался после ограничения.
+_SYMBOLS_CACHE_KEY = "exchanges:symbols:v2:{name}"
 _SYMBOLS_CACHE_TTL_SEC = 3600
-_TOP_N = 10
-_QUOTE = "USDT"
 
 
 class ExchangeMetaOut(BaseModel):
@@ -72,7 +70,11 @@ async def list_symbols(
 
 
 async def _fetch_top_symbols(exchange_name: str) -> list[str]:
-    """Грузит markets+tickers с биржи, фильтрует USDT-пары, сортирует по объёму, top N."""
+    """Возвращает разрешённые пары (ALLOWED_SYMBOLS), реально доступные на бирже.
+
+    Пересекаем фиксированный allowlist с активными markets биржи (сохраняя порядок
+    allowlist). Если markets загрузить не удалось — отдаём весь allowlist как fallback.
+    """
     import ccxt.async_support as ccxt_async  # импорт здесь — модуль тяжёлый
 
     klass = getattr(ccxt_async, exchange_name, None)
@@ -81,27 +83,16 @@ async def _fetch_top_symbols(exchange_name: str) -> list[str]:
 
     client = klass({"enableRateLimit": True})
     try:
-        # Не каждая биржа отдаёт volume в load_markets — добираем через fetch_tickers.
         markets = await client.load_markets()
-        usdt_pairs = [
-            sym for sym, info in markets.items()
-            if info.get("quote") == _QUOTE and info.get("active", True)
-        ]
-        if not usdt_pairs:
-            return []
-
-        # Тикеры могут не поддерживаться все разом — пробуем, fallback к простому списку.
-        try:
-            tickers: dict[str, Any] = await client.fetch_tickers(usdt_pairs)
-        except Exception:
-            tickers = {}
-
-        def volume_of(sym: str) -> float:
-            t = tickers.get(sym) or {}
-            return float(t.get("quoteVolume") or t.get("baseVolume") or 0.0)
-
-        ranked = sorted(usdt_pairs, key=volume_of, reverse=True)
-        return ranked[:_TOP_N]
+        available = {
+            sym
+            for sym, info in markets.items()
+            if info.get("active", True)
+        }
+        return [s for s in ALLOWED_SYMBOLS if s in available]
+    except Exception:
+        # Биржа недоступна / load_markets упал — не блокируем UI, отдаём allowlist.
+        return list(ALLOWED_SYMBOLS)
     finally:
         close = getattr(client, "close", None)
         if callable(close):

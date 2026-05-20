@@ -4,11 +4,14 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from src.infrastructure.exchange_meta import SUPPORTED_EXCHANGES
 
 
 class BacktestRunIn(BaseModel):
     strategy_class: str = Field(..., min_length=1, max_length=64)
+    exchange: str = Field(default="binance", min_length=1, max_length=32)
     symbol: str = Field(..., min_length=3, max_length=32)
     timeframe: str = Field(..., min_length=1, max_length=8)
     params: dict[str, Any] = Field(default_factory=dict)
@@ -19,10 +22,19 @@ class BacktestRunIn(BaseModel):
         description="Currency → amount (string for Decimal precision)",
     )
 
+    @field_validator("exchange")
+    @classmethod
+    def _validate_exchange(cls, v: str) -> str:
+        name = v.strip().lower()
+        if name not in SUPPORTED_EXCHANGES:
+            raise ValueError(f"exchange '{v}' is not supported")
+        return name
+
 
 class BacktestJobOut(BaseModel):
     id: uuid.UUID
     status: str
+    exchange: str
     strategy_class: str
     symbol: str
     timeframe: str
@@ -43,6 +55,7 @@ class BacktestJobSummaryOut(BaseModel):
 
     id: uuid.UUID
     status: str
+    exchange: str
     strategy_class: str
     symbol: str
     timeframe: str

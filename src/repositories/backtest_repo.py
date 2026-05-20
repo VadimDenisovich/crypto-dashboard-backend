@@ -19,6 +19,7 @@ class BacktestJobRepository:
         self,
         *,
         user_id: uuid.UUID,
+        exchange: str,
         strategy_class: str,
         symbol: str,
         timeframe: str,
@@ -30,6 +31,7 @@ class BacktestJobRepository:
         job = BacktestJob(
             user_id=user_id,
             status=BacktestStatus.QUEUED.value,
+            exchange=exchange,
             strategy_class=strategy_class,
             symbol=symbol,
             timeframe=timeframe,

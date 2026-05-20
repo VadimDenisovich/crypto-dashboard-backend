@@ -37,6 +37,7 @@ async def run_backtest(
     repo = BacktestJobRepository(db)
     job = await repo.create(
         user_id=user.id,
+        exchange=body.exchange,
         strategy_class=body.strategy_class,
         symbol=body.symbol,
         timeframe=body.timeframe,
@@ -81,6 +82,7 @@ async def list_backtests(
             BacktestJobSummaryOut(
                 id=j.id,
                 status=j.status,
+                exchange=j.exchange,
                 strategy_class=j.strategy_class,
                 symbol=j.symbol,
                 timeframe=j.timeframe,
