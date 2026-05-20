@@ -33,6 +33,7 @@ async def ws_updates(ws: WebSocket, token: str = Query(...)) -> None:
     manager: ConnectionManager = ws.app.state.ws_manager
     await ws.accept()
     await manager.connect(user_id, ws)
+    await ws.send_json({"type": "connected"})
     log.info("ws.connected", user_id=str(user_id))
 
     async def _ping_loop() -> None:

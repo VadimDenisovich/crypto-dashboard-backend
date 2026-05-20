@@ -284,12 +284,9 @@ class TestEventProjector:
     async def test_engine_status_is_logged(self, session, caplog, redis):
         import logging
 
-        from src.logging_setup import get_logger
-        from src.services.event_projector import log as projector_log
-
         projector = EventProjector(session, ConnectionManager())
 
-        with caplog.at_level(logging.INFO, logger=projector_log.name):
+        with caplog.at_level(logging.INFO, logger="src.services.event_projector"):
             await projector.handle(events.ENGINE_STATUS, {"uptime": 120, "active_bots": ["id1"]})
 
         assert any(
@@ -301,11 +298,9 @@ class TestEventProjector:
     async def test_unknown_channel_is_logged(self, session, caplog, redis):
         import logging
 
-        from src.services.event_projector import log as projector_log
-
         projector = EventProjector(session, ConnectionManager())
 
-        with caplog.at_level(logging.WARNING, logger=projector_log.name):
+        with caplog.at_level(logging.WARNING, logger="src.services.event_projector"):
             await projector.handle("engine.unknown_channel", {"data": 1})
 
         assert any(

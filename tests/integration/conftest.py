@@ -32,6 +32,8 @@ os.environ["BACKEND_CAPTCHA_DISABLED"] = "true"
 # значения из os.environ.
 from src.config import Settings, get_settings
 from src.infrastructure.crypto import Cipher
+from src.infrastructure.email_codes import EmailCodeStore
+from src.infrastructure.resend_email import ResendClient
 from src.infrastructure.security import encode_access_token
 from src.infrastructure.ws_manager import ConnectionManager
 from src.main import create_app
@@ -106,8 +108,12 @@ async def app(engine: AsyncEngine, session: AsyncSession, redis: Redis) -> Async
     fastapi_app.state.cipher = cipher
     fastapi_app.state.ws_manager = ws_manager
     fastapi_app.state.backtest_queue = asyncio.Queue()
-    fastapi_app.state.resend = None
-    fastapi_app.state.email_codes = None
+    fastapi_app.state.resend = ResendClient(
+        api_key="", sender_email="", sender_name="test"
+    )
+    fastapi_app.state.email_codes = EmailCodeStore(
+        redis, ttl_sec=600, max_attempts=5, rate_limit_per_min=10
+    )
 
     yield fastapi_app
     await ws_manager.close_all()
