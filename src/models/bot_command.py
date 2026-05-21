@@ -29,7 +29,12 @@ class BotCommand(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("bots.id", ondelete="CASCADE"), nullable=False, index=True
     )
     kind: Mapped[CommandKind] = mapped_column(
-        SAEnum(CommandKind, name="command_kind"), nullable=False
+        SAEnum(
+            CommandKind,
+            name="command_kind",
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
+        nullable=False,
     )
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
