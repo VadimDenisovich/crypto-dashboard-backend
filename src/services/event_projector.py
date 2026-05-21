@@ -44,6 +44,8 @@ class EventProjector:
             await self._handle_strategy_error(payload)
         elif channel == events.ENGINE_STATUS:
             await self._broadcast_status(payload)
+        elif channel == events.ENGINE_LOG:
+            await self._broadcast_log(payload)
         else:
             log.warning("event.unknown_channel", channel=channel)
 
@@ -139,6 +141,10 @@ class EventProjector:
             await self._ws.broadcast_to_user(
                 bot.user_id, {"type": "strategy_error", "data": payload}
             )
+
+    async def _broadcast_log(self, payload: dict[str, Any]) -> None:
+        """Пересылает engine-логи всем WS-клиентам (фильтруются на фронте)."""
+        await self._ws.broadcast_all({"type": "engine_log", "data": payload})
 
     async def _broadcast_status(self, payload: dict[str, Any]) -> None:
         active_bots_raw: list[str] = payload.get("active_bots", [])

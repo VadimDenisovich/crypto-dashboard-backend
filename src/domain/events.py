@@ -12,6 +12,7 @@ BALANCE_UPDATE = "engine.balance_update"
 POSITIONS_UPDATE = "engine.positions_update"
 ENGINE_STATUS = "engine.status"
 STRATEGY_ERROR = "engine.strategy_error"
+ENGINE_LOG = "engine.log"
 
 ENGINE_CHANNELS: tuple[str, ...] = (
     NEW_TRADE,
@@ -19,6 +20,7 @@ ENGINE_CHANNELS: tuple[str, ...] = (
     POSITIONS_UPDATE,
     ENGINE_STATUS,
     STRATEGY_ERROR,
+    ENGINE_LOG,
 )
 
 # Каналы команд, которые ПУБЛИКУЕТ бэкенд (читает движок)

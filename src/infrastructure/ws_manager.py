@@ -39,6 +39,18 @@ class ConnectionManager:
             return_exceptions=True,
         )
 
+    async def broadcast_all(self, message: dict[str, Any]) -> None:
+        async with self._lock:
+            sockets: list[tuple[uuid.UUID, WebSocket]] = [
+                (uid, ws) for uid, wss in self._connections.items() for ws in wss
+            ]
+        if not sockets:
+            return
+        await asyncio.gather(
+            *(self._send_one(ws, uid, message) for uid, ws in sockets),
+            return_exceptions=True,
+        )
+
     async def _send_one(self, ws: WebSocket, user_id: uuid.UUID, message: dict[str, Any]) -> None:
         try:
             await asyncio.wait_for(ws.send_json(message), timeout=self._send_timeout)
