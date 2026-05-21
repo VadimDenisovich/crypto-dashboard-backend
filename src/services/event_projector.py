@@ -150,6 +150,7 @@ class EventProjector:
                 log.warning("event.invalid_active_bot_id", bot_id=bid)
 
         repo = BotRepository(self._session)
+        from datetime import datetime, timedelta, timezone
 
         # starting → running: бот появился в active_bots, а статус 'starting'
         if active_bot_ids:
@@ -161,6 +162,38 @@ class EventProjector:
                         "bot.running", bot_id=str(bot.id),
                         strategy=bot.strategy_class, symbol=bot.symbol,
                     )
+
+        # running/stopping → stopped: бота НЕТ в active_bots
+        bots_active = await repo.list_by_statuses([BotStatus.RUNNING, BotStatus.STOPPING])
+        for bot in bots_active:
+            if bot.id not in active_bot_ids:
+                await repo.update_status_by_id(bot.id, BotStatus.STOPPED)
+                log.info(
+                    "bot.stopped_by_heartbeat", bot_id=str(bot.id),
+                    strategy=bot.strategy_class,
+                )
+
+        # starting → error: бот в 'starting' > 2 мин и НЕ в active_bots
+        # (engine не смог запустить стратегию — сеть, биржа, расшифровка)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=2)
+        bots_stale = await repo.list_by_statuses([BotStatus.STARTING])
+        for bot in bots_stale:
+            if bot.id not in active_bot_ids:
+                # updated_at держится SQLAlchemy onupdate
+                if bot.updated_at is not None and bot.updated_at < cutoff:
+                    await repo.update_status_by_id(bot.id, BotStatus.ERROR)
+                    log.warning(
+                        "bot.startup_timeout",
+                        bot_id=str(bot.id),
+                        strategy=bot.strategy_class,
+                        since=bot.updated_at.isoformat(),
+                    )
+
+        log.info(
+            "engine.status",
+            uptime_sec=payload.get("uptime_sec"),
+            active_count=len(active_bot_ids),
+        )
 
         # running → stopped: бота НЕТ в active_bots, а статус 'running' или 'stopping'
         bots_active = await repo.list_by_statuses([BotStatus.RUNNING, BotStatus.STOPPING])
