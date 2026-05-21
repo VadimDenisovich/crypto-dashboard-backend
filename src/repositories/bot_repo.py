@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.bot import Bot, BotStatus
@@ -48,6 +48,21 @@ class BotRepository:
         bot.status = status.value
         await self._session.flush()
         return bot
+
+    async def update_status_by_id(self, bot_id: uuid.UUID, status: BotStatus) -> None:
+        """Прямой UPDATE без загрузки ORM-объекта — для event projector'а."""
+        stmt = (
+            update(Bot)
+            .where(Bot.id == bot_id)
+            .values(status=status.value)
+        )
+        await self._session.execute(stmt)
+
+    async def list_by_statuses(self, statuses: Sequence[BotStatus]) -> Sequence[Bot]:
+        result = await self._session.execute(
+            select(Bot).where(Bot.status.in_([s.value for s in statuses]))
+        )
+        return result.scalars().all()
 
     async def update_params(self, bot: Bot, params: dict[str, Any]) -> Bot:
         bot.params = params
