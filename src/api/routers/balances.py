@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
-from src.api.deps import CurrentUser, DbSession
+from src.api.deps import CurrentUser, DbSession, get_redis
 from src.api.schemas.market import BalanceOut, BalanceSummaryOut
 from src.repositories.balance_repo import BalanceRepository
 from src.repositories.credential_repo import ExchangeCredentialRepository
@@ -87,8 +87,6 @@ async def balances_summary(user: CurrentUser, db: DbSession) -> BalanceSummaryOu
 @router.get("/balances/debug")
 async def balances_debug(user: CurrentUser, db: DbSession, request: Request) -> dict:
     """Диагностика: показывает все балансовые снапшоты, credentials, и статус engine."""
-    from src.api.deps import get_redis
-
     creds = await ExchangeCredentialRepository(db).list_for_user(user.id)
     result: dict = {
         "credentials_count": len(creds),
@@ -116,3 +114,20 @@ async def balances_debug(user: CurrentUser, db: DbSession, request: Request) -> 
         result["engine_alive"] = None  # Redis не доступен
 
     return result
+
+
+@router.get("/engine-health", include_in_schema=False)
+async def engine_health(request: Request) -> dict:
+    """Публичный эндпоинт: жив ли engine (есть ли heartbeat) + ошибки баланса."""
+    redis = get_redis(request)
+    hb = await redis.get("engine:last_heartbeat")
+    err_raw = await redis.get("engine:last_balance_error")
+    err: dict | None = None
+    if err_raw:
+        import json as _json
+        err = _json.loads(err_raw) if isinstance(err_raw, str) else _json.loads(err_raw.decode())
+    return {
+        "engine_alive": hb is not None,
+        "last_heartbeat": hb if isinstance(hb, (str, bytes)) and hb else None,
+        "last_balance_error": err,
+    }
