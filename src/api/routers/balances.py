@@ -118,16 +118,21 @@ async def balances_debug(user: CurrentUser, db: DbSession, request: Request) -> 
 
 @router.get("/engine-health", include_in_schema=False)
 async def engine_health(request: Request) -> dict:
-    """Публичный эндпоинт: жив ли engine (есть ли heartbeat) + ошибки баланса."""
+    """Публичный эндпоинт: жив ли engine (есть ли heartbeat) + ошибки + успех баланса."""
     redis = get_redis(request)
     hb = await redis.get("engine:last_heartbeat")
     err_raw = await redis.get("engine:last_balance_error")
+    ok_raw = await redis.get("engine:last_balance_success")
     err: dict | None = None
+    ok: dict | None = None
+    import json as _json
     if err_raw:
-        import json as _json
         err = _json.loads(err_raw) if isinstance(err_raw, str) else _json.loads(err_raw.decode())
+    if ok_raw:
+        ok = _json.loads(ok_raw) if isinstance(ok_raw, str) else _json.loads(ok_raw.decode())
     return {
         "engine_alive": hb is not None,
         "last_heartbeat": hb if isinstance(hb, (str, bytes)) and hb else None,
         "last_balance_error": err,
+        "last_balance_success": ok,
     }
