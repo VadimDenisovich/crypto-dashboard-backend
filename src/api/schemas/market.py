@@ -68,3 +68,4 @@ class BalanceSummaryOut(BaseModel):
     currencies: list[BalanceOut]
     open_pnl: Decimal = Decimal("0")
     position_count: int = 0
+    last_observed_at: datetime | None = None
