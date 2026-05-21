@@ -22,6 +22,7 @@ from src.models import (  # noqa: F401  imports register tables on metadata
     order,
     trade,
     balance_snapshot,
+    position_snapshot,
     strategy_error,
     oauth_identity,
     backtest_job,
