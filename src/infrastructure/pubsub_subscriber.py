@@ -18,6 +18,7 @@ log = get_logger(__name__)
 async def _process_message(
     session_factory: async_sessionmaker[AsyncSession],
     ws_manager: ConnectionManager,
+    redis: Redis,
     channel: str,
     payload: dict[str, Any],
 ) -> None:
@@ -28,6 +29,15 @@ async def _process_message(
         except Exception as exc:
             await session.rollback()
             log.exception("event.processing_failed", channel=channel, error=str(exc))
+
+    # Засекаем момент последнего heartbeat — для диагностики /api/balances/debug
+    if channel == events.ENGINE_STATUS:
+        from datetime import datetime, timezone
+        await redis.set(
+            "engine:last_heartbeat",
+            datetime.now(timezone.utc).isoformat(),
+            ex=120,
+        )
 
 
 async def run_subscriber(
@@ -63,7 +73,7 @@ async def run_subscriber(
                     if not isinstance(payload, dict):
                         log.warning("pubsub.bad_payload_type", channel=channel)
                         continue
-                    await _process_message(session_factory, ws_manager, channel, payload)
+                    await _process_message(session_factory, ws_manager, redis, channel, payload)
         except asyncio.CancelledError:
             log.info("pubsub.cancelled")
             raise

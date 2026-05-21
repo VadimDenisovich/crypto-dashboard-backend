@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from src.api.deps import CurrentUser, DbSession
 from src.api.schemas.market import BalanceOut, BalanceSummaryOut
@@ -85,13 +85,16 @@ async def balances_summary(user: CurrentUser, db: DbSession) -> BalanceSummaryOu
 
 
 @router.get("/balances/debug")
-async def balances_debug(user: CurrentUser, db: DbSession) -> dict:
-    """Диагностика: показывает все балансовые снапшоты и credentials пользователя."""
+async def balances_debug(user: CurrentUser, db: DbSession, request: Request) -> dict:
+    """Диагностика: показывает все балансовые снапшоты, credentials, и статус engine."""
+    from src.api.deps import get_redis
+
     creds = await ExchangeCredentialRepository(db).list_for_user(user.id)
     result: dict = {
         "credentials_count": len(creds),
         "credentials": [{"id": str(c.id), "exchange": c.exchange, "label": c.label} for c in creds],
         "balance_snapshots": [],
+        "engine_alive": None,
     }
 
     for cred in creds:
@@ -101,5 +104,15 @@ async def balances_debug(user: CurrentUser, db: DbSession) -> dict:
             "snapshot_count": len(items),
             "latest": [BalanceOut.model_validate(b).model_dump(mode="json") for b in items[:10]],
         })
+
+    # Проверяем heartbeat engine через Redis
+    try:
+        redis = get_redis(request)
+        hb = await redis.get("engine:last_heartbeat")
+        result["engine_alive"] = hb is not None
+        if hb:
+            result["engine_last_heartbeat"] = hb if isinstance(hb, str) else hb.decode()
+    except Exception:
+        result["engine_alive"] = None  # Redis не доступен
 
     return result
