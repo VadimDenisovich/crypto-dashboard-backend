@@ -12,14 +12,19 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 FROM python:3.14-slim AS runtime
 
+ARG APP_UID=1000
+ARG APP_GID=1000
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
+# gosu - нужен entrypoint-скрипту для сброса привилегий после chown на data/historical
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libpq5 curl && \
+      libpq5 curl gosu && \
     rm -rf /var/lib/apt/lists/* && \
-    useradd --create-home --uid 1000 app
+    groupadd --gid ${APP_GID} app 2>/dev/null || true && \
+    useradd --create-home --uid ${APP_UID} --gid ${APP_GID} app
 
 WORKDIR /app
 COPY --from=builder /build/wheels /wheels
@@ -34,8 +39,12 @@ COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app alembic ./alembic
 COPY --chown=app:app src ./src
 
-USER app
+# entrypoint чинит права на /data/historical и сбрасывает root → app
+COPY --chown=app:app docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 8000
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS http://localhost:8000/healthz || exit 1
