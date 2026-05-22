@@ -17,6 +17,7 @@ from src.api.routers import (
     credentials,
     exchanges,
     health,
+    metrics,
     oauth,
     positions,
     trades,
@@ -31,6 +32,7 @@ from src.infrastructure.pubsub_subscriber import run_subscriber
 from src.infrastructure.redis_client import create_redis
 from src.infrastructure.resend_email import ResendClient
 from src.infrastructure.ws_manager import ConnectionManager
+from src.api.routers.metrics import prometheus_middleware
 from src.logging_setup import configure_logging, get_logger
 from src.services.backtest_worker import backtest_worker
 
@@ -125,7 +127,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.middleware("http")(prometheus_middleware)
     app.include_router(health.router)
+    app.include_router(metrics.router)
     app.include_router(auth.router)
     app.include_router(oauth.router)
     app.include_router(credentials.router)
