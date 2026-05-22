@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     backend_historical_dir: str = Field(default="/data/historical")
     # Максимальное время одного backtest-прогона (через subprocess timeout).
     backend_backtest_timeout_sec: int = Field(default=1800)
+    # Директория с ML-моделями (чекпоинты LightGBM для стратегии MlRsi).
+    backend_ml_model_dir: str = Field(default="/app/data/models/ml_rsi")
 
     @property
     def cors_origins_list(self) -> list[str]:

@@ -21,7 +21,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # gosu - нужен entrypoint-скрипту для сброса привилегий после chown на data/historical
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libpq5 curl gosu && \
+      libpq5 curl gosu libgomp1 && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd --gid ${APP_GID} app 2>/dev/null || true && \
     useradd --create-home --uid ${APP_UID} --gid ${APP_GID} app
@@ -33,7 +33,7 @@ RUN pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
 # Phase 4 (backtest): pandas/pyarrow нужны движку при запуске backtest_main
 # subprocess'а. Ставим их в backend-образ, чтобы subprocess мог импортировать.
 # Сам движок монтируется bind-mount'ом через docker-compose (PYTHONPATH=/opt/engine/src).
-RUN pip install --no-cache-dir "pandas>=2.2" "pyarrow>=15"
+RUN pip install --no-cache-dir "pandas>=2.2" "pyarrow>=15" "lightgbm>=4.3" "scikit-learn>=1.4" "joblib>=1.4"
 
 COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app alembic ./alembic

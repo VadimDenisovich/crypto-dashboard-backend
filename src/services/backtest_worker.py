@@ -77,13 +77,17 @@ async def _run_subprocess(
     return (proc.returncode or 0, stdout_b.decode("utf-8", errors="replace"), stderr_b.decode("utf-8", errors="replace"))
 
 
-def _build_config_payload(job: BacktestJob) -> dict[str, Any]:
+def _build_config_payload(job: BacktestJob, settings: Settings) -> dict[str, Any]:
+    params = dict(job.params)
+    # MlRsi strategy needs absolute path to model checkpoints inside the container.
+    if job.strategy_class == "MlRsi" and "model_dir" not in params:
+        params["model_dir"] = settings.backend_ml_model_dir
     return {
         "exchange": job.exchange,
         "strategy": job.strategy_class,
         "symbol": job.symbol,
         "timeframe": job.timeframe,
-        "params": dict(job.params),
+        "params": params,
         "initial_balance": dict(job.initial_balance),
         # Диапазон дат передаём в мс — движок фильтрует свечи и/или докачивает
         # недостающие данные с реальной биржи (гибрид parquet + CCXT).
@@ -115,7 +119,7 @@ async def _process_job(
             timeframe=job.timeframe,
         )
 
-        config = _build_config_payload(job)
+        config = _build_config_payload(job, settings)
         config["parquet_path"] = str(parquet)
         try:
             with tempfile.NamedTemporaryFile(
