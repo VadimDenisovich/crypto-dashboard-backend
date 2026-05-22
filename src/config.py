@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # Адрес фронта — сюда бэк делает 302 после OAuth callback с JWT в query string.
     backend_frontend_url: str = Field(default="http://localhost:5173")
 
+    # === Dev mode: отключает captcha/email/OAuth ===
+    # BACKEND_DEV_MODE=true пропускает капчу, генерит код "000000" для любого email
+    # и не отправляет письмо через Resend. Для локальной разработки без внешних сервисов.
+    backend_dev_mode: bool = Field(default=False)
+
     # Cloudflare Turnstile. В dev/CI можно отключить — поставить true.
     backend_captcha_disabled: bool = Field(default=False)
     turnstile_secret: str = Field(default="")

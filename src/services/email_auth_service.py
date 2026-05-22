@@ -36,6 +36,11 @@ class EmailAuthService:
     async def request_code(
         self, *, email: str, captcha_token: str, remoteip: str | None
     ) -> None:
+        # Dev mode: пропускаем капчу, генерим код "000000", не отправляем email.
+        if self._settings.backend_dev_mode:
+            await self._codes.issue_fixed(email, "000000")
+            return
+
         # Turnstile-секрет основной, hcaptcha-fallback для backwards-compat — Phase 2.
         secret = self._settings.turnstile_secret or self._settings.hcaptcha_secret
         await verify_turnstile(

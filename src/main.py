@@ -41,6 +41,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(settings.backend_log_level)
     log = get_logger("lifespan")
 
+    # Для бэктест-subprocess'а: добавляем engine/src в PYTHONPATH
+    _add_engine_to_path()
+
     engine = create_engine(settings.backend_database_url)
     session_factory = create_session_factory(engine)
     redis = create_redis(settings.backend_redis_url)
@@ -112,7 +115,12 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ] if settings.backend_dev_mode else settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -133,3 +141,24 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+def _add_engine_to_path() -> None:
+    """Add trade-engine src to PYTHONPATH so backtest subprocess can find it."""
+    import os as _os
+    import sys as _sys
+    from pathlib import Path as _Path
+    candidates = [
+        _Path("/opt/engine/src"),  # Docker
+    ]
+    try:
+        # Monorepo local dev: backend/src/main.py → 3 parents → root
+        monorepo = _Path(__file__).resolve().parent.parent.parent.parent / "trade-engine-crypto" / "src"
+        if monorepo.is_dir():
+            candidates.append(monorepo)
+    except (IndexError, ValueError):
+        pass
+    for p in candidates:
+        if p.is_dir() and str(p) not in _sys.path:
+            _sys.path.insert(0, str(p))
+            _os.environ["PYTHONPATH"] = str(p) + ":" + _os.environ.get("PYTHONPATH", "")

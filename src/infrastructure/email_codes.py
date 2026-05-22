@@ -101,6 +101,17 @@ class EmailCodeStore:
         )
         return code
 
+    async def issue_fixed(self, email: str, code: str) -> None:
+        """Сохранить фиксированный код (dev mode: код известен заранее)."""
+        record = {
+            "hash": _pwd_ctx.hash(code),
+            "attempts": 0,
+            "requested_at": int(time.time()),
+        }
+        await self._redis.set(
+            self._email_key(email), json.dumps(record), ex=self._ttl
+        )
+
     async def verify(self, email: str, code: str) -> None:
         """Проверить код. На успех — удалить ключ. На провал — инкремент."""
         key = self._email_key(email)
