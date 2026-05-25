@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.balance_snapshot import BalanceSnapshot
@@ -33,11 +33,27 @@ class BalanceRepository:
         self._session.add(snap)
 
     async def latest_for_credential(self, credential_id: uuid.UUID) -> Sequence[BalanceSnapshot]:
+        ranked = (
+            select(
+                BalanceSnapshot.id.label("id"),
+                func.row_number()
+                .over(
+                    partition_by=BalanceSnapshot.currency,
+                    order_by=(
+                        BalanceSnapshot.observed_at.desc(),
+                        BalanceSnapshot.id.desc(),
+                    ),
+                )
+                .label("rn"),
+            )
+            .where(BalanceSnapshot.credential_id == credential_id)
+            .subquery()
+        )
         stmt = (
             select(BalanceSnapshot)
-            .where(BalanceSnapshot.credential_id == credential_id)
-            .order_by(BalanceSnapshot.observed_at.desc())
-            .limit(100)
+            .join(ranked, BalanceSnapshot.id == ranked.c.id)
+            .where(ranked.c.rn == 1)
+            .order_by(BalanceSnapshot.currency.asc())
         )
         result = await self._session.execute(stmt)
         return result.scalars().all()

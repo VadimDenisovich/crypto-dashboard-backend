@@ -11,6 +11,7 @@ from src.api.schemas.market import BalanceOut, BalanceSummaryOut
 from src.repositories.balance_repo import BalanceRepository
 from src.repositories.credential_repo import ExchangeCredentialRepository
 from src.repositories.position_repo import PositionRepository
+from src.services.balance_valuation import get_usdt_price
 
 router = APIRouter(prefix="/api", tags=["balances"])
 
@@ -29,7 +30,9 @@ async def list_balances(
 
 
 @router.get("/balances/summary", response_model=BalanceSummaryOut)
-async def balances_summary(user: CurrentUser, db: DbSession) -> BalanceSummaryOut:
+async def balances_summary(
+    user: CurrentUser, db: DbSession, request: Request
+) -> BalanceSummaryOut:
     creds = await ExchangeCredentialRepository(db).list_for_user(user.id)
     if not creds:
         return BalanceSummaryOut(
@@ -39,19 +42,18 @@ async def balances_summary(user: CurrentUser, db: DbSession) -> BalanceSummaryOu
             currencies=[],
         )
 
-    currencies_map: dict[uuid.UUID, dict[str, BalanceOut]] = {}
+    redis = get_redis(request)
+    currencies_map: dict[uuid.UUID, list[BalanceOut]] = {}
     last_observed: datetime | None = None
 
     for cred in creds:
         items = await BalanceRepository(db).latest_for_credential(cred.id)
         if not items:
             continue
-        per_cred: dict[str, BalanceOut] = {}
+        per_cred: list[BalanceOut] = []
         for b in items:
             bal = BalanceOut.model_validate(b)
-            # Дедупликация по валюте: берём только самый свежий снапшот для каждой валюты
-            if bal.currency not in per_cred:
-                per_cred[bal.currency] = bal
+            per_cred.append(bal)
             if last_observed is None or bal.observed_at > last_observed:
                 last_observed = bal.observed_at
         currencies_map[cred.id] = per_cred
@@ -62,11 +64,20 @@ async def balances_summary(user: CurrentUser, db: DbSession) -> BalanceSummaryOu
     open_pnl = Decimal("0")
     position_count = 0
 
+    creds_by_id = {cred.id: cred for cred in creds}
     for cred_id, per_cred in currencies_map.items():
-        for bal in per_cred.values():
+        cred = creds_by_id[cred_id]
+        for bal in per_cred:
             all_balances.append(bal)
-            total_free += bal.free
-            total_used += bal.used
+            usdt_price = await get_usdt_price(
+                redis,
+                exchange=cred.exchange,
+                currency=bal.currency,
+            )
+            if usdt_price is None:
+                continue
+            total_free += bal.free * usdt_price
+            total_used += bal.used * usdt_price
 
         positions = await PositionRepository(db).latest_for_credential(cred_id)
         for p in positions:
