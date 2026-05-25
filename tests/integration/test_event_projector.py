@@ -293,6 +293,26 @@ class TestEventProjector:
             "engine.status" in r.message for r in caplog.records
         )
 
+    async def test_strategy_started_log_marks_bot_running(self, session, test_bot, redis):
+        from src.models.bot import BotStatus
+
+        test_bot.status = BotStatus.STARTING.value
+        await session.flush()
+
+        projector = EventProjector(session, ConnectionManager())
+        await projector.handle(
+            events.ENGINE_LOG,
+            {
+                "kind": "strategy_started",
+                "bot_id": str(test_bot.id),
+                "message": "SmaCross started",
+            },
+        )
+        await session.flush()
+        await session.refresh(test_bot)
+
+        assert test_bot.status == BotStatus.RUNNING.value
+
     # ── unknown channel ─────────────────────────────────────────
 
     async def test_unknown_channel_is_logged(self, session, caplog, redis):

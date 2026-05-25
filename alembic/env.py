@@ -16,6 +16,7 @@ from src.config import get_settings
 from src.models.base import Base
 from src.models import (  # noqa: F401  imports register tables on metadata
     user,
+    user_api_key,
     exchange_credential,
     bot,
     bot_command,

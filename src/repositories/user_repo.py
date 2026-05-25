@@ -36,3 +36,7 @@ class UserRepository:
 
         user.last_login_at = utcnow()
         await self._session.flush()
+
+    async def flush(self) -> None:
+        """Сбросить незавершённые изменения в БД (без коммита транзакции)."""
+        await self._session.flush()

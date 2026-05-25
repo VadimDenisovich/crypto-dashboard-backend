@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum as SAEnum
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -46,3 +46,7 @@ class User(Base, TimestampMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # 2FA TOTP: после успешной верификации записываем base32-секрет (32 символа +
+    # запас). Включается только парой two_fa_enabled=True + two_fa_secret IS NOT NULL.
+    two_fa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    two_fa_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)

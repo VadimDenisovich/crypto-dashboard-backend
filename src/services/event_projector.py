@@ -144,6 +144,18 @@ class EventProjector:
 
     async def _broadcast_log(self, payload: dict[str, Any]) -> None:
         """Пересылает engine-логи всем WS-клиентам (фильтруются на фронте)."""
+        if payload.get("kind") == "strategy_started":
+            bot = await self._resolve_bot_by_id(payload.get("bot_id"))
+            if bot is not None:
+                await BotRepository(self._session).update_status_by_id(
+                    bot.id, BotStatus.RUNNING
+                )
+                log.info(
+                    "bot.running",
+                    bot_id=str(bot.id),
+                    strategy=bot.strategy_class,
+                    symbol=bot.symbol,
+                )
         await self._ws.broadcast_all({"type": "engine_log", "data": payload})
 
     async def _broadcast_status(self, payload: dict[str, Any]) -> None:
@@ -158,7 +170,6 @@ class EventProjector:
         repo = BotRepository(self._session)
         from datetime import datetime, timedelta, timezone
 
-        # starting → running: бот появился в active_bots, а статус 'starting'
         if active_bot_ids:
             bots_starting = await repo.list_by_statuses([BotStatus.STARTING])
             for bot in bots_starting:
@@ -169,7 +180,6 @@ class EventProjector:
                         strategy=bot.strategy_class, symbol=bot.symbol,
                     )
 
-        # running/stopping → stopped: бота НЕТ в active_bots
         bots_active = await repo.list_by_statuses([BotStatus.RUNNING, BotStatus.STOPPING])
         for bot in bots_active:
             if bot.id not in active_bot_ids:
@@ -194,22 +204,6 @@ class EventProjector:
                         strategy=bot.strategy_class,
                         since=bot.updated_at.isoformat(),
                     )
-
-        log.info(
-            "engine.status",
-            uptime_sec=payload.get("uptime_sec"),
-            active_count=len(active_bot_ids),
-        )
-
-        # running → stopped: бота НЕТ в active_bots, а статус 'running' или 'stopping'
-        bots_active = await repo.list_by_statuses([BotStatus.RUNNING, BotStatus.STOPPING])
-        for bot in bots_active:
-            if bot.id not in active_bot_ids:
-                await repo.update_status_by_id(bot.id, BotStatus.STOPPED)
-                log.info(
-                    "bot.stopped_by_heartbeat", bot_id=str(bot.id),
-                    strategy=bot.strategy_class,
-                )
 
         log.info(
             "engine.status",
